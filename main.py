@@ -20,14 +20,14 @@ chatbot = pipeline(
 )
 
 # Сохранение контекста
-async def save_context(chat_id: int, text: str, is_bot: bool = False):
+def save_context(chat_id: int, text: str, is_bot: bool = False):
     key = f"chat:{chat_id}"
     message = f"Bot: {text}" if is_bot else f"User: {text}"
     redis.lpush(key, message)
-    redis.ltrim(key, 0, 99)  # Храним 100 последних сообщений
+    redis.ltrim(key, 0, 99)  # Храним 100 сообщений
 
 # Генерация ответа
-async def generate_response(chat_id: int) -> str:
+def generate_response(chat_id: int) -> str:
     history = redis.lrange(f"chat:{chat_id}", 0, -1)
     context = "\n".join([msg.decode() for msg in reversed(history)])
     response = chatbot(context, max_length=200, temperature=0.9)[0]['generated_text']
@@ -38,9 +38,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_message = update.message.text
 
-    await save_context(chat_id, user_message)
-    response = await generate_response(chat_id)
-    await save_context(chat_id, response, is_bot=True)
+    save_context(chat_id, user_message)
+    response = generate_response(chat_id)
+    save_context(chat_id, response, is_bot=True)
 
     await update.message.reply_text(response)
 
